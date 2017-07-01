@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<Workspace>
+  <ConfigDictionary>
+    
+  <CurrentConfigs><Project>Maze/Debug</Project></CurrentConfigs></ConfigDictionary>
+  <Desktop>
+    <Static>
+      <Workspace>
+        <ColumnWidths>
+          
+          
+          
+          
+        <Column0>206</Column0><Column1>27</Column1><Column2>27</Column2><Column3>27</Column3></ColumnWidths>
+      <PreferedWindows><Position>1</Position><ScreenPosX>0</ScreenPosX><ScreenPosY>0</ScreenPosY><Windows/></PreferedWindows></Workspace>
+      <Build>
+        
+        
+        
+        
+      <ColumnWidth0>20</ColumnWidth0><ColumnWidth1>915</ColumnWidth1><ColumnWidth2>244</ColumnWidth2><ColumnWidth3>61</ColumnWidth3></Build>
+      <TerminalIO/>
+      <Debug-Log/>
+    <Disassembly><MixedMode>1</MixedMode><CodeCovEnabled>0</CodeCovEnabled><CodeCovShow>0</CodeCovShow></Disassembly></Static>
+    <Windows>
+      
+      
+    <Wnd1>
+        <Tabs>
+          <Tab>
+            <Identity>TabID-10524-13564</Identity>
+            <TabName>Build</TabName>
+            <Factory>Build</Factory>
+            <Session/>
+          </Tab>
+          
+        <Tab><Identity>TabID-2402-12742</Identity><TabName>Debug Log</TabName><Factory>Debug-Log</Factory><Session/></Tab></Tabs>
+        
+      <SelectedTab>0</SelectedTab></Wnd1><Wnd3><Tabs><Tab><Identity>TabID-7758-4995</Identity><TabName>Workspace</TabName><Factory>Workspace</Factory><Session><NodeDict><ExpandedNode>Maze</ExpandedNode><ExpandedNode>Maze/src</ExpandedNode><ExpandedNode>Maze/src/Mouse_Drive.c</ExpandedNode><ExpandedNode>Maze/src/iic.c</ExpandedNode><ExpandedNode>Maze/src/iic.c/Output</ExpandedNode><ExpandedNode>Maze/src/maze.c</ExpandedNode><ExpandedNode>Maze/src/zlg7289.c</ExpandedNode><ExpandedNode>Maze/src/zlg7289.c/Output</ExpandedNode><ExpandedNode>Maze/startup</ExpandedNode><ExpandedNode>Maze/startup/startup.c</ExpandedNode></NodeDict></Session></Tab></Tabs><SelectedTab>0</SelectedTab></Wnd3></Windows>
+    <Editor>
+      
+      
+      
+      
+    <Pane><Tab><Factory>TextEditor</Factory><Filename>K:\&#x57F9;&#x8BAD;\&#x7535;&#x8111;&#x9F20;\&#x7CBe;&#x7075;\&#xFF08;&#x7CBe;&#x7075;&#xFF09;\src\Mouse_Config.h</Filename><XPos>0</XPos><YPos>33</YPos><SelStart>1918</SelStart><SelEnd>1918</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>K:\&#x57F9;&#x8BAD;\&#x7535;&#x8111;&#x9F20;\&#x7CBe;&#x7075;\&#xFF08;&#x7CBe;&#x7075;&#xFF09;\src\maze.c</Filename><XPos>0</XPos><YPos>639</YPos><SelStart>28153</SelStart><SelEnd>28153</SelEnd></Tab><ActiveTab>1</ActiveTab></Pane><ActivePane>0</ActivePane><Sizes><Pane><X>1000000</X><Y>1000000</Y></Pane></Sizes><SplitMode>1</SplitMode></Editor>
+    <Positions>
+      
+      
+      
+      
+      
+    <Top><Row0><Sizes><Toolbar-01d32ab8><key>iaridepm.enu1</key></Toolbar-01d32ab8></Sizes></Row0><Row1><Sizes/></Row1></Top><Left><Row0><Sizes><Wnd3><Rect><Top>-2</Top><Left>-2</Left><Bottom>657</Bottom><Right>297</Right><x>-2</x><y>-2</y><xscreen>0</xscreen><yscreen>0</yscreen><sizeHorzCX>0</sizeHorzCX><sizeHorzCY>0</sizeHorzCY><sizeVertCX>207639</sizeVertCX><sizeVertCY>805623</sizeVertCY></Rect></Wnd3></Sizes></Row0></Left><Right><Row0><Sizes/></Row0></Right><Bottom><Row0><Sizes><Wnd1><Rect><Top>-2</Top><Left>-2</Left><Bottom>116</Bottom><Right>1442</Right><x>-2</x><y>-2</y><xscreen>1444</xscreen><yscreen>118</yscreen><sizeHorzCX>1002778</sizeHorzCX><sizeHorzCY>144254</sizeHorzCY><sizeVertCX>0</sizeVertCX><sizeVertCY>0</sizeVertCY></Rect></Wnd1></Sizes></Row0></Bottom><Float><Sizes/></Float></Positions>
+  </Desktop>
+</Workspace>
+
+

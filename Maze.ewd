@@ -339,7 +339,7 @@
         </option>
         <option>
           <name>LmiftdiSpeed</name>
-          <state>500</state>
+          <state>200</state>
         </option>
         <option>
           <name>CCLmiftdiResetRadio</name>

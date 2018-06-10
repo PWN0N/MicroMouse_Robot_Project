@@ -49,7 +49,7 @@ extern void Timer2A_ISR(void);
 //extern void UART0_ISR(void);
 extern void SysTick_ISR(void);
 extern void GPIO_Port_A_ISR(void);
-//extern void GPIO_Port_C_ISR(void);
+extern void GPIO_Port_C_ISR(void);
 
 //*****************************************************************************
 //
@@ -110,7 +110,7 @@ __root const uVectorEntry g_pfnVectors[] @ "INTVEC" =
     SysTick_ISR,                            // The SysTick handler
     GPIO_Port_A_ISR,                        // GPIO Port A
     IntDefaultHandler,                      // GPIO Port B
-    IntDefaultHandler,                      // GPIO Port C
+    GPIO_Port_C_ISR,                      // GPIO Port C
     IntDefaultHandler,                      // GPIO Port D
     IntDefaultHandler,                      // GPIO Port E
     IntDefaultHandler,                              // UART0 Rx and Tx

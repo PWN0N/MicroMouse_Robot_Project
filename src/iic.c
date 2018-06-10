@@ -369,11 +369,11 @@ void IIC_Send_Byte(uint8 txd)
       }
         //IIC_SDA=(txd&0x80)>>7;
         txd<<=1; 	  
-		__Delay (1);   
-		SCL_1();
-		__Delay (1);
-		SCL_0();	
-		__Delay (1);
+        __Delay (1);   
+        SCL_1();
+        __Delay (1);
+        SCL_0();	
+        __Delay (1);
     }	 
 }
 
@@ -428,14 +428,11 @@ void MPU6050_WriteI2C(uint8 REG_Address,uint8 REG_data)
 
 void MPU6050_Init(void)
 {
-	uint8 Add;//Æ÷¼þµØÖ·
-	Add=MPU6050_ReadI2C(WHO_AM_I);//LS CHANGED "ADD A //"
-	MPU6050_WriteI2C(PWR_MGMT_1, 0x00);	//½â³ýÐÝÃß×´Ì¬
-	MPU6050_WriteI2C(SMPLRT_DIV, 0x07);
-	MPU6050_WriteI2C(CONFIG, 0x06);
-	MPU6050_WriteI2C(GYRO_CONFIG, 0x18);
-	//MPU6050_WriteI2C(ACCEL_CONFIG, 0x08);	//Bit4 3 
-
+    uint8 Add;//Æ÷¼þµØÖ·
+    MPU6050_WriteI2C(PWR_MGMT_1, 0x00);	//½â³ýÐÝÃß×´Ì¬
+    MPU6050_WriteI2C(SMPLRT_DIV, 0x07);
+    MPU6050_WriteI2C(CONFIG, 0x06);
+    MPU6050_WriteI2C(GYRO_CONFIG, 0x18);
 }
 
 uint16 GetData(uint8 REG_Address)
@@ -445,5 +442,3 @@ uint16 GetData(uint8 REG_Address)
     L=MPU6050_ReadI2C(REG_Address+1);
     return (H<<8)+L; 
 }
-
-

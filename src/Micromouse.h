@@ -1,4 +1,9 @@
-/*--------------File Info--------------------------------------------------------------------------------
+/****************************************Copyright (c)***************************************************
+**                               Guangzhou ZHIYUAN electronics Co.,LTD.
+**                                     
+**                                 http://www.embedtools.com
+**
+**--------------File Info--------------------------------------------------------------------------------
 ** File Name:           Micromouse.h
 ** Last modified Date: 
 ** Last Version: 
@@ -74,6 +79,7 @@ struct mazecoor
 {
     int8 cX;
     int8 cY;
+    int8 dir;
 };
 typedef struct mazecoor MAZECOOR;
 

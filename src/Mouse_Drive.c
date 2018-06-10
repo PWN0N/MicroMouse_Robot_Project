@@ -28,6 +28,7 @@
   °üº¬Í·ÎÄ¼þ
 *********************************************************************************************************/
 #include "Mouse_Drive.h"
+#include "Maze.h"
 /*********************************************************************************************************
   ¶¨ÒåÈ«¾Ö±äÁ¿
 *********************************************************************************************************/
@@ -60,13 +61,20 @@ uint16   GusFreq_LF                        = 31700;   //34000           /*  ×óÓÒ
 uint16   GusFreq_L                         = 18300;              /*  ×óÓÒºìÍâ½ü¾àÆµÂÊ              */
 static  int16   GsTpusle_T                       = 0;                  /*  ×óÂÖÐ£Õý¼õÉÙµÄËÙ¶ÈÖµ              */
 static uint8    GuiSpeedCtr                       = 0;
-static uint16   GuiTpusle_LR                      = 0;
-static uint16   GuiTpusle_S                       = 0;
+static int16   GuiTpusle_LR                      = 0;
+static int16   GuiTpusle_back_LR                 =0;
+static int16   GuiTpusle_S                       = 0;
 static uint8    GucFrontNear                      = 0;
 uint8    GucFangXiang                      = 0;
 uint8    GucDirTemp                        = 0;
 uint32    DIS[10]                           = {0};
 uint8 Tab=0;//ºìÍâµ÷ÊÔÑ¡Ïî
+
+uint16 buffer=0; //ËÙ¶ÈÔöÁ¿
+uint8 s=0;  //UARTCharPut(UART0_BASE, s++); µ÷ÊÔÓÃ
+uint8 flag_bug=0;  //³öbugÊ±±êÖ¾Î»
+uint8 flag_bug1=0;
+
 /*********************************************************************************************************
 ** Function name:       __delay
 ** Descriptions:        ÑÓÊ±º¯Êý
@@ -364,9 +372,9 @@ void __SpeedDown (void)
     uint16 Speed;
     Speed=__GmSPID.sFeedBack;
     if(__GmSPID.sRef>=MINSPEED){
-      if(Speed <=__GmSPID.sRef)
+      if(Speed <=__GmSPID.sRef+4)
       {
-       __GmSPID.sRef=__GmSPID.sRef-3;
+       __GmSPID.sRef=__GmSPID.sRef-4;
       }
     }
 }
@@ -405,7 +413,7 @@ void Timer0B_ISR(void)
 *********************************************************************************************************/
 void Timer2A_ISR(void)
 {
-    static int8 n = 0,m = 0,k=0;
+    static int8 n = 0,m = 0,t=0,k=0;
     TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);                     /*  Çå³ý¶¨Ê±Æ÷2AÖÐ¶Ï¡£           */
     __Encoder();
     switch (__GmRight.cState) {
@@ -419,10 +427,42 @@ void Timer2A_ISR(void)
 
     case __WAITONESTEP:                                                 /*  ÔÝÍ£Ò»²½                    */
         __GmRight.cState = __MOTORRUN;
-        if ((__GucDistance[__FRONTL] && (__GucDistance[__FRONTR] == 0))||((__GucDistance[__RIGHT] == 1) && (__GucDistance[__LEFT] == 0)))
-           GsTpusle_T = -2;
-        else if((__GucDistance[__FRONTR] &&(__GucDistance[__FRONTL]==0))||((__GucDistance[__LEFT] == 1) && (__GucDistance[__RIGHT] == 0)))
-           GsTpusle_T = 2;
+//        if ((__GucDistance[__FRONTL] && (__GucDistance[__FRONTR] == 0))||((__GucDistance[__RIGHT] == 1) && (__GucDistance[__LEFT] == 0)))
+//           GsTpusle_T = -2;
+//        else if((__GucDistance[__FRONTR] &&(__GucDistance[__FRONTL]==0))||((__GucDistance[__LEFT] == 1) && (__GucDistance[__RIGHT] == 0)))
+//           GsTpusle_T = 2;
+        
+       if((__GucDistance[__RIGHT]!=0) && (__GucDistance[__LEFT] == 0))
+        {
+          GsTpusle_T = -1;
+        }
+        else if((__GucDistance[__LEFT]!=0) && (__GucDistance[__RIGHT] == 0))
+        {
+          GsTpusle_T = 1;
+        }      
+         if((__GucDistance[__RIGHT]==0x03)&&(__GucDistance[__LEFT]!=0x03))
+        {GsTpusle_T=3;}
+        else if((__GucDistance[__RIGHT]!=0x03)&&(__GucDistance[__LEFT]==0x03))
+        {GsTpusle_T=-3;}
+        
+        if(__GucDistance[__FRONTL] && (__GucDistance[__FRONTR] == 0))
+        {
+          GsTpusle_T = -3;
+          if(__GmSPID.sFeedBack>50)
+          {GsTpusle_T = -2;}
+          if(__GmSPID.sFeedBack>80)
+          {GsTpusle_T = -1;}
+        }
+        else if(__GucDistance[__FRONTR] &&(__GucDistance[__FRONTL]==0))
+        {
+          GsTpusle_T = 3;
+           if(__GmSPID.sFeedBack>50)
+          {GsTpusle_T = 2;}
+           if(__GmSPID.sFeedBack>80)
+          {GsTpusle_T = 1;}
+        }
+       
+       
         __PIDContr();
         break;
 
@@ -431,7 +471,7 @@ void Timer2A_ISR(void)
       {                             
             if ((__GucDistance[__FRONTL] && (__GucDistance[__FRONTR] == 0))||(__GucDistance[__FRONTR] &&(__GucDistance[__FRONTL]==0)))     /* Æ«×ó,Æ«ÓÒ */
             {
-              if (n == 0)//Ô­À´ÊÇ3
+              if (n ==2)
               {
                     __GmRight.cState = __WAITONESTEP;
                     //__GmRight.uiPulseCtr += 2;
@@ -441,21 +481,31 @@ void Timer2A_ISR(void)
                     GsTpusle_T = 1;*/
               }               
               n++;
-              n %= 1;  //Ô­À´ÊÇ6
+              n %= 4;
             }            
             else if (((__GucDistance[__RIGHT] == 1) && (__GucDistance[__LEFT] == 0))||((__GucDistance[__LEFT] == 1) && (__GucDistance[__RIGHT] == 0)))   /* Ô¶Æ«×ó£¬Ô¶Æ«ÓÒ */
             {
-                if(m ==0) 
+                if(m ==2) 
                 {
                     __GmRight.cState = __WAITONESTEP;
                 }
                 m++;
-                m %=1;
+                m %=4;
             } 
+             else if(((__GucDistance[__RIGHT]==0x03)&&(__GucDistance[__LEFT]!=0x03))||((__GucDistance[__RIGHT]!=0x03)&&(__GucDistance[__LEFT]==0x03)))
+            {
+              if(t==3)
+              {
+                __GmRight.cState = __WAITONESTEP;
+              }
+              t++;
+              t%=6;
+            }
             else 
             {
                 m  = 0;
                 n = 0;
+                t=0;
                 GsTpusle_T = 0;
             }
         
@@ -493,6 +543,17 @@ void Timer2A_ISR(void)
       __GmLeft.cState = __MOTORSTOP;
       break;
       
+     case __CORRECT:
+      __GmRight.cDir=__MOTORGOBACK;
+      __GmLeft.cDir=__MOTORGOBACK;
+      __GmRight.sSpeed =buffer;
+      __rightMotorContr();
+      __GmLeft.sSpeed =buffer;
+      __leftMotorContr();
+      if(buffer<500)
+      {buffer++;}
+      break;
+      
     default:
         break;
     }
@@ -514,6 +575,28 @@ void UART0_ISR(void)
     dat=(uint8)UARTCharGet(UART0_BASE);
     UARTCharPut(UART0_BASE, dat);
 }
+
+/*********************************************************************************************************
+** Function name:       GPIO_Port_C_ISR
+** Descriptions:        START°´¼üÖÐ¶Ï·þÎñº¯Êý
+** input parameters:    ÎÞ
+** output parameters:   ÎÞ
+** Returned value:      ÎÞ
+*********************************************************************************************************/
+void GPIO_Port_C_ISR (void)
+{
+   uint8 status;
+   status = GPIOPinIntStatus(GPIO_PORTC_BASE, true);              /*  ¶ÁPC¿ÚÖÐ¶Ï×´Ì¬              */
+      if(status & __START)                                       /*  start°´¼üÖÐ¶Ï          */
+    {
+        GPIOPinIntClear(GPIO_PORTC_BASE, __START);                  /*  ÇåÖÐ¶Ï                      */
+        if (GPIOPinRead(GPIO_PORTC_BASE, __START) == 0) 
+        {
+          __delay(50);
+          while(GPIOPinRead(GPIO_PORTC_BASE, __START) == 0);
+        }
+    }
+}
 /*********************************************************************************************************
 ** Function name:       GPIO_Port_A_ISR
 ** Descriptions:        ZLG7289°´¼üÖÐ¶Ï·þÎñº¯Êý
@@ -527,6 +610,7 @@ void GPIO_Port_A_ISR (void)                                         /*  °´¼üµ÷½Ú
     uint8 key;
     uint8 B,S,G;
     status = GPIOPinIntStatus(GPIO_PORTA_BASE, true);              /*  ¶ÁPA¿ÚÖÐ¶Ï×´Ì¬              */
+
     if(status & ZLG7289_KEY)                                       /*  ÅÐ¶ÏÊÇ·ñÎª°´¼üÖÐ¶Ï          */
     {
         GPIOPinIntClear(GPIO_PORTA_BASE, ZLG7289_KEY);                  /*  ÇåÖÐ¶Ï                      */
@@ -742,162 +826,44 @@ void GPIO_Port_A_ISR (void)                                         /*  °´¼üµ÷½Ú
 *********************************************************************************************************/
 void mouseGoahead (int8  cNBlock)                                    //Á¬Ðø×ªÍäÓÃ
 {
-      int8 cL = 0, cR = 0, cCoor = 1,cB;
-    //GusFreq_LF = 35400;
-    GuiSpeedCtr=__SPEEDUP;
-    if (__GmLeft.cState) {
-        cCoor = 0;
-    }
-    if(cNBlock==1)
-    {
-        cL = 1;
-        cR = 1;
-        //GuiTpusle_LR = 0;    //100
-        if(GucFangXiang == GucDirTemp)
-        {
-           //GucYiBaiBa=1;
-           GuiTpusle_LR = 1600;//1600
-           GuiTpusle_S = 0;
-        }
-        else
-        {
-           GuiTpusle_LR = 1600;//1600
-           GuiTpusle_S = 0;
-        }
-        __GiMaxSpeed = 40;//40 
-    }
-    else{
-        GuiTpusle_LR = 0;
-        GuiTpusle_S = 0;
-        __GiMaxSpeed = 70;//54 70
-    }
-    GucFangXiang = GucDirTemp;
-    if(((GmcMouse.cX==7)&&(GmcMouse.cY==7))|| 
-         ((GmcMouse.cX==8)&&(GmcMouse.cY==8))||
-         ((GmcMouse.cX==7)&&(GmcMouse.cY==8))||
-           ((GmcMouse.cX==8)&&(GmcMouse.cY==7))){
-       cL = 0;
-       cR = 0;
-       GuiTpusle_LR = 0;
-       GuiTpusle_S = 0;
-    }
-    if((__GucMouseState==__TURNRIGHT)||(__GucMouseState==__TURNLEFT))
-    {
-        __GmLeft.uiPulseCtr = 7200;       //1182(34mm)
-        __GmRight.uiPulseCtr = 7200;
-    }
-    
-    cB=cNBlock;
-    __GucMouseState   = __GOAHEAD;
-    //__GiMaxSpeed      =   30;
-    __GmRight.uiPulse = __GmRight.uiPulse + cNBlock * ONEBLOCK ;
-    __GmLeft.uiPulse  = __GmLeft.uiPulse  + cNBlock * ONEBLOCK ;
-    __GmRight.cState  = __MOTORRUN;
-    __GmLeft.cState   = __MOTORRUN;
-    
-    while (__GmLeft.cState != __MOTORSTOP) {
-       
-        if (__GmLeft.uiPulseCtr >= ONEBLOCK) {                          /*  ÅÐ¶ÏÊÇ·ñ×ßÍêÒ»¸ñ            */
-            __GmLeft.uiPulse    -= ONEBLOCK;
-            __GmLeft.uiPulseCtr -= ONEBLOCK;
-            if (cCoor) {
-                cNBlock--;
-                if(cNBlock==0)
-                   goto End;
-                if(cNBlock<cB)
-                  GuiSpeedCtr=__SPEEDUP;
-            } else {
-                cCoor = 1;
-            }
-        }
-        
-        if (__GmRight.uiPulseCtr >= ONEBLOCK) {                         /*  ÅÐ¶ÏÊÇ·ñ×ßÍêÒ»¸ñ            */
-            __GmRight.uiPulse    -= ONEBLOCK;
-            __GmRight.uiPulseCtr -= ONEBLOCK;
-        }
-        if (cNBlock < 2) {
-          if(__GmSPID.sFeedBack>40){
-              GuiSpeedCtr= 3;
-              __GmSPID.sRef=40;
-          }  
-          if (cL) 
-          {                                                       /*  ÊÇ·ñÔÊÐí¼ì²â×ó±ß            */
-            if ((__GucDistance[ __LEFT] & 0x01) == 0)             /*  ×ó±ßÓÐÖ§Â·£¬Ìø³ö³ÌÐò        */
-            {                 
-                __GmRight.uiPulse = __GmRight.uiPulseCtr + 1760- GuiTpusle_LR; //1380
-                __GmLeft.uiPulse  = __GmLeft.uiPulseCtr  + 1760- GuiTpusle_LR;
-                while ((__GucDistance[ __LEFT] & 0x01) == 0) 
-                {
-                    
-                    if ((__GmLeft.uiPulseCtr + 600) > __GmLeft.uiPulse) 
-                    {
-                        goto End;
-                    }
-                }
-            }
-            } else {                                                    /*  ×ó±ßÓÐÇ½Ê±¿ªÊ¼ÔÊÐí¼ì²â×ó±ß  */
-                if ( __GucDistance[ __LEFT] & 0x01) {
-                    cL = 1;
-                }
-            }
-         if (cR) 
-            {                                                       /*  ÊÇ·ñÔÊÐí¼ì²âÓÒ±ß            */
-            if ((__GucDistance[__RIGHT] & 0x01) == 0)               /*  ÓÒ±ßÓÐÖ§Â·£¬Ìø³ö³ÌÐò        */
-            {                
-                __GmRight.uiPulse = __GmRight.uiPulseCtr + 2200- GuiTpusle_LR;//3500//3000
-                __GmLeft.uiPulse  = __GmLeft.uiPulseCtr  + 2200- GuiTpusle_LR;
-                while ((__GucDistance[ __RIGHT] & 0x01) ==0) 
-                {
-                    
-                    if ((__GmLeft.uiPulseCtr + 600) > __GmLeft.uiPulse) 
-                    {
-                        goto End;
-                    }
-                }
-            }
-            } else {
-                if ( __GucDistance[__RIGHT] & 0x01) {                   /*  ÓÒ±ßÓÐÇ½Ê±¿ªÊ¼ÔÊÐí¼ì²âÓÒ±ß  */
-                    cR = 1;
-                }
-            }
-        }
-   }
-    /*
-     *  Éè¶¨ÔËÐÐÈÎÎñ£¬ÈÃµçÄÔÊó×ßµ½Ö§Â·µÄÖÐÐÄÎ»ÖÃ
-     */
-End:     ;//GuiSpeedCtr= 3;
-         //__GmSPID.sRef=18;
-}
-
-void mouseGoahead_L (int8  cNBlock)                                    //Á¬Ðø×ªÍäÓÃ
-{
     int8 cL = 0, cR = 0, cCoor = 1,cB;
-    //GusFreq_LF = 35400;
+    
     GuiSpeedCtr=__SPEEDUP;
     if (__GmLeft.cState) {
         cCoor = 0;
+    }
+       if((__GucMouseState==__TURNRIGHT)||(__GucMouseState==__TURNLEFT))
+    {
+        if(GucDirTemp==0)  //µ½´ïÄ¿µÄµØ²»ÐèÒª×ªÍä
+        {
+           GuiTpusle_back_LR = 1400;  //  <3000
+           
+        }
+        else
+        {
+           GuiTpusle_back_LR = 2000;  //µ½´ïÄ¿µÄµØÐèÒª×ªÍä
+           GuiTpusle_S  = 1600;     //  <1000
+        }
+    }
+    else
+    {
+        if(GucDirTemp==0)
+        {
+           GuiTpusle_back_LR = 300;  //<3000
+        }
+        else
+        {
+           GuiTpusle_back_LR = 1100;
+           GuiTpusle_S  = 1600;
+        }
     }
     if(cNBlock==1)
     {
         cL = 1;
         cR = 1;
-        //GuiTpusle_LR = 0;    //100
-        if(GucFangXiang == GucDirTemp)
-        {
-           //GucYiBaiBa=1;
-           GuiTpusle_LR = 1600;//1600
-           GuiTpusle_S  = 0;
-        }
-        else
-        {
-           GuiTpusle_LR = 1600;//1600
-           GuiTpusle_S  = 0;//300
-        }
-        __GiMaxSpeed = 45;
+        __GiMaxSpeed = 43;
     }
     else{
-        GuiTpusle_LR = 0;
-        GuiTpusle_S  = 0;
     }
     GucFangXiang = GucDirTemp;
     if(((GmcMouse.cX==7)&&(GmcMouse.cY==7))|| 
@@ -906,47 +872,25 @@ void mouseGoahead_L (int8  cNBlock)                                    //Á¬Ðø×ªÍ
            ((GmcMouse.cX==8)&&(GmcMouse.cY==7))){
        cL = 0;
        cR = 0;
-       GuiTpusle_LR = 0;
-       GuiTpusle_S  = 0;
     }
     if((__GucMouseState==__TURNRIGHT)||(__GucMouseState==__TURNLEFT))
     {
-        __GmLeft.uiPulseCtr = 7200;       //1182(34mm)
-        __GmRight.uiPulseCtr = 7200;
+        __GmLeft.uiPulseCtr = 9000;       //1182(34mm)  //7200
+        __GmRight.uiPulseCtr = 9000;      //7200
     }
     
     cB=cNBlock;
     __GucMouseState   = __GOAHEAD;
-
     __GmRight.uiPulse = __GmRight.uiPulse + cNBlock * ONEBLOCK ;
     __GmLeft.uiPulse  = __GmLeft.uiPulse  + cNBlock * ONEBLOCK ;
     __GmRight.cState  = __MOTORRUN;
     __GmLeft.cState   = __MOTORRUN;
-
-       if(cNBlock > 5)
+    if(cNBlock >2)
     {
-      __GiMaxSpeed=150;
-    }
-    else if(cNBlock == 5)
-    {
-      __GiMaxSpeed=150;
-    }
-    else if(cNBlock == 4)
-    {
-      __GiMaxSpeed=78;//78//70//90
-    }
-    else if(cNBlock == 3)
-    {
-      __GiMaxSpeed=60;//70//60//70
-    }
-    else if(cNBlock == 2)
-    {
-      __GiMaxSpeed=36;//45//40
+      __GiMaxSpeed=110;
     }
     else
      ;
-    
-      
     while (__GmLeft.cState != __MOTORSTOP) {
        
         if (__GmLeft.uiPulseCtr >= ONEBLOCK) {                          /*  ÅÐ¶ÏÊÇ·ñ×ßÍêÒ»¸ñ            */
@@ -954,15 +898,11 @@ void mouseGoahead_L (int8  cNBlock)                                    //Á¬Ðø×ªÍ
             __GmLeft.uiPulseCtr -= ONEBLOCK;
             if (cCoor) {
                 cNBlock--;
-
                 if(cNBlock==0)
                    goto End;
-
                 if(cNBlock<cB-1)//¸ø»ØËÙÒ»¸öÊ±¼ä
                   GuiSpeedCtr=__SPEEDUP;
-            } 
-              else 
-              {
+            } else {
                 cCoor = 1;
             }
         }
@@ -971,25 +911,26 @@ void mouseGoahead_L (int8  cNBlock)                                    //Á¬Ðø×ªÍ
             __GmRight.uiPulse    -= ONEBLOCK;
             __GmRight.uiPulseCtr -= ONEBLOCK;
         }
-
-        if(cNBlock<3)
-         {
-          if(__GmSPID.sFeedBack>90){
+        if(cNBlock==2)
+        {
+          if(__GmSPID.sFeedBack>60){
               GuiSpeedCtr= 3;
-             __GmSPID.sRef=90;
-          }                       
-         }        
+             __GmSPID.sRef=60;
+             __GiMaxSpeed = 60;
+          } 
+        }
         if (cNBlock < 2) {
-          if(__GmSPID.sFeedBack>45){
+          if(__GmSPID.sFeedBack>43){
               GuiSpeedCtr= 3;
-             __GmSPID.sRef=45;
+             __GmSPID.sRef=43;
+             __GiMaxSpeed = 43;
           }  
           if (cL) 
           {                                                       /*  ÊÇ·ñÔÊÐí¼ì²â×ó±ß            */
             if ((__GucDistance[ __LEFT] & 0x01) == 0)             /*  ×ó±ßÓÐÖ§Â·£¬Ìø³ö³ÌÐò        */
             {                 
-                __GmRight.uiPulse = __GmRight.uiPulseCtr  + 1100- GuiTpusle_LR;    //3094(89mm)
-                __GmLeft.uiPulse  = __GmLeft.uiPulseCtr   + 1100- GuiTpusle_LR;
+                __GmRight.uiPulse = __GmRight.uiPulseCtr  + 3600- GuiTpusle_back_LR;    //3094(89mm)
+                __GmLeft.uiPulse  = __GmLeft.uiPulseCtr   + 3600- GuiTpusle_back_LR;    //2600
                 while ((__GucDistance[ __LEFT] & 0x01) == 0) 
                 {
                     
@@ -1008,8 +949,8 @@ void mouseGoahead_L (int8  cNBlock)                                    //Á¬Ðø×ªÍ
             {                                                       /*  ÊÇ·ñÔÊÐí¼ì²âÓÒ±ß            */
             if ((__GucDistance[__RIGHT] & 0x01) == 0)               /*  ÓÒ±ßÓÐÖ§Â·£¬Ìø³ö³ÌÐò        */
             {                
-                __GmRight.uiPulse = __GmRight.uiPulseCtr + 2100- GuiTpusle_LR;
-                __GmLeft.uiPulse  = __GmLeft.uiPulseCtr + 2100- GuiTpusle_LR;
+                __GmRight.uiPulse = __GmRight.uiPulseCtr + 3600- GuiTpusle_back_LR;
+                __GmLeft.uiPulse  = __GmLeft.uiPulseCtr + 3600- GuiTpusle_back_LR;
                 while ((__GucDistance[ __RIGHT] & 0x01) ==0) 
                 {
                     
@@ -1026,11 +967,8 @@ void mouseGoahead_L (int8  cNBlock)                                    //Á¬Ðø×ªÍ
             }
         }
    }
-    /*
-     *  Éè¶¨ÔËÐÐÈÎÎñ£¬ÈÃµçÄÔÊó×ßµ½Ö§Â·µÄÖÐÐÄÎ»ÖÃ
-     */
-End:     ;
-         
+End: ;
+  
 }
 
 void mouseGoahead_Llow (int8  cNBlock)                                    //Á¬Ðø×ªÍäÓÃ,ÈçÓÐÊ®×ÖÂ·¿ÚµÍËÙ¡¢²»¼ÓËÙ
@@ -1040,41 +978,61 @@ void mouseGoahead_Llow (int8  cNBlock)                                    //Á¬Ðø
     if (__GmLeft.cState) {
         cCoor = 0;
     }
-    if(cNBlock==1)
+    if((__GucMouseState==__TURNRIGHT)||(__GucMouseState==__TURNLEFT))
     {
-        cL = 1;
-        cR = 1;
-        if(GucFangXiang == GucDirTemp)
+        if(GucDirTemp==0)  //µ½´ïÄ¿µÄµØ²»ÐèÒª×ªÍä
         {
-           GuiTpusle_LR = 1600;
-           GuiTpusle_S  = 0;
+           GuiTpusle_back_LR = 1400;  //  <3000
         }
         else
         {
-           GuiTpusle_LR = 1600;
-           GuiTpusle_S  = 0;
+           GuiTpusle_back_LR = 2000;  //µ½´ïÄ¿µÄµØÐèÒª×ªÍä
+           GuiTpusle_S  = 1600;     //  <1000
         }
-        __GiMaxSpeed = 40;
+    }
+    else
+    {
+        if(GucDirTemp==0)
+        {
+           GuiTpusle_back_LR = 300;  //<3000
+        }
+        else
+        {
+           GuiTpusle_back_LR = 1100;
+           GuiTpusle_S  = 1600;
+        }
+    }
+    if(cNBlock==1)
+    {
+        cL = 1;
+        cR = 1;        
+       __GiMaxSpeed = 43;//40
+       if(flag_bug1==1)
+       {
+         if(((__GucDistance[ __LEFT] & 0x01) == 0)||((__GucDistance[ __RIGHT] & 0x01) == 0))
+           {
+            cL = 0;
+            cR = 0;    
+           }
+         flag_bug1=0;
+      }
     }
     else{
-        GuiTpusle_LR = 0;
-        GuiTpusle_S  = 0;
-        __GiMaxSpeed = 60;
+        __GiMaxSpeed = 60;//60
     }
     GucFangXiang = GucDirTemp;
+    GucDirTemp=0;
     if(((GmcMouse.cX==7)&&(GmcMouse.cY==7))|| 
          ((GmcMouse.cX==8)&&(GmcMouse.cY==8))||
          ((GmcMouse.cX==7)&&(GmcMouse.cY==8))||
            ((GmcMouse.cX==8)&&(GmcMouse.cY==7))){
        cL = 0;
-       cR = 0;
-       GuiTpusle_LR = 0;
-       GuiTpusle_S  = 0;
+       cR = 0;  
     }
     if((__GucMouseState==__TURNRIGHT)||(__GucMouseState==__TURNLEFT))
     {
-        __GmLeft.uiPulseCtr = 7200;       //1182(34mm)
-        __GmRight.uiPulseCtr = 7200;
+        __GmLeft.uiPulseCtr = 9000;       //1182(34mm)
+        __GmRight.uiPulseCtr = 9000;
     }
     
     cB=cNBlock;
@@ -1084,7 +1042,7 @@ void mouseGoahead_Llow (int8  cNBlock)                                    //Á¬Ðø
     __GmRight.cState  = __MOTORRUN;
     __GmLeft.cState   = __MOTORRUN;
     
-    while (__GmLeft.cState != __MOTORSTOP) {
+    while (__GmLeft.cState != __MOTORSTOP) {                                                      
        
         if (__GmLeft.uiPulseCtr >= ONEBLOCK) {                          /*  ÅÐ¶ÏÊÇ·ñ×ßÍêÒ»¸ñ            */
             __GmLeft.uiPulse    -= ONEBLOCK;
@@ -1105,16 +1063,17 @@ void mouseGoahead_Llow (int8  cNBlock)                                    //Á¬Ðø
             __GmRight.uiPulseCtr -= ONEBLOCK;
         }
         if (cNBlock < 2) {
-          if(__GmSPID.sFeedBack>40){
+          if(__GmSPID.sFeedBack>43){
               GuiSpeedCtr= 3;
-              __GmSPID.sRef=40;
+              __GmSPID.sRef=43;
+              __GiMaxSpeed = 43;
           }  
           if (cL) 
           {                                                       /*  ÊÇ·ñÔÊÐí¼ì²â×ó±ß            */
             if ((__GucDistance[ __LEFT] & 0x01) == 0)             /*  ×ó±ßÓÐÖ§Â·£¬Ìø³ö³ÌÐò        */
             {                 
-                __GmRight.uiPulse = __GmRight.uiPulseCtr + 1100- GuiTpusle_LR;    //3094(89mm)
-                __GmLeft.uiPulse  = __GmLeft.uiPulseCtr  + 1100- GuiTpusle_LR;
+                __GmRight.uiPulse = __GmRight.uiPulseCtr + 3600- GuiTpusle_back_LR;    //3094(89mm)
+                __GmLeft.uiPulse  = __GmLeft.uiPulseCtr  + 3600- GuiTpusle_back_LR;
                 while ((__GucDistance[ __LEFT] & 0x01) == 0) 
                 {
                     
@@ -1133,8 +1092,8 @@ void mouseGoahead_Llow (int8  cNBlock)                                    //Á¬Ðø
             {                                                       /*  ÊÇ·ñÔÊÐí¼ì²âÓÒ±ß            */
             if ((__GucDistance[__RIGHT] & 0x01) == 0)               /*  ÓÒ±ßÓÐÖ§Â·£¬Ìø³ö³ÌÐò        */
             {                
-                __GmRight.uiPulse = __GmRight.uiPulseCtr + 2100- GuiTpusle_LR;
-                __GmLeft.uiPulse  = __GmLeft.uiPulseCtr  + 2100- GuiTpusle_LR;
+                __GmRight.uiPulse = __GmRight.uiPulseCtr + 3600- GuiTpusle_back_LR;
+                __GmLeft.uiPulse  = __GmLeft.uiPulseCtr  + 3600- GuiTpusle_back_LR;
                 while ((__GucDistance[ __RIGHT] & 0x01) ==0) 
                 {
                     
@@ -1166,32 +1125,36 @@ End:    ;
 *********************************************************************************************************/
 void mazeSearch(void)                  //ËÑË÷Á¬Ðø×ªÍä
 {
-    int8 cL = 0, cR = 0, cCoor = 1;
-    //GusFreq_FJ = 30800;    //342
+    int8 cL = 0, cR = 0, cCoor = 1,cj=0;
+    uint16 bug_LR=0;
+
+    __GmSPID.sRef=36;
+    __GiMaxSpeed=36;
     if (__GmLeft.cState) {
         cCoor = 0;
     }
     /*
      *  Éè¶¨ÔËÐÐÈÎÎñ
+    
      */
     if((__GucMouseState==__TURNRIGHT)||(__GucMouseState==__TURNLEFT))
     {
-        __GmLeft.uiPulseCtr = 7600;       //1182(34mm)
-        __GmRight.uiPulseCtr = 7600;
+        __GmLeft.uiPulseCtr = 10000;       //1182(34mm) //7600
+        __GmRight.uiPulseCtr = 10000;      //7600
         cL = 1;
         cR = 1;
         if((__GucDistance[__FRONT]!=0)||((__GucDistance[ __LEFT] & 0x01) == 0)||((__GucDistance[__RIGHT] & 0x01) == 0)){
           if(__GucDistance[__FRONT]!=0)
-            GuiTpusle_LR = 2200;
+            GuiTpusle_LR = 1600;  //2200
           else
-            GuiTpusle_LR =2000;
+            GuiTpusle_LR =1600;   //2000
         }
         else{
           GuiTpusle_LR =0; 
         }
     }
     else{
-      GuiTpusle_LR =0;
+      GuiTpusle_LR =0;  //0
     }
     __GucMouseState   = __GOAHEAD;
     __GiMaxSpeed      =   SEARCHSPEED;       
@@ -1201,15 +1164,58 @@ void mazeSearch(void)                  //ËÑË÷Á¬Ðø×ªÍä
     __GmLeft.cState   = __MOTORRUN;
      GuiSpeedCtr=__SPEEDUP;
     while (__GmLeft.cState != __MOTORSTOP) {
-       
+      
         if (__GmLeft.uiPulseCtr >= ONEBLOCK) {                          /*  ÅÐ¶ÏÊÇ·ñ×ßÍêÒ»¸ñ            */
+            cj++;
             __GmLeft.uiPulse    -= ONEBLOCK;
             __GmLeft.uiPulseCtr -= ONEBLOCK;
             if (cCoor) {
+             GuiTpusle_LR =0;
               if((__GucDistance[__FRONT])&&(__GucDistance[ __LEFT] & 0x01)&&(__GucDistance[__RIGHT] & 0x01)){
                 GucFrontNear=1;
                 goto End;
               }
+              if(!cL)
+              {
+                  if ((__GucDistance[ __LEFT] & 0x01) == 0) {                 /*  ×ó±ßÓÐÖ§Â·£¬Ìø³ö³ÌÐò        */            
+                    __GmRight.uiPulse = __GmRight.uiPulseCtr+bug_LR;
+                    __GmLeft.uiPulse  = __GmLeft.uiPulseCtr+bug_LR;
+                    while ((__GucDistance[ __LEFT] & 0x01) == 0) {
+                     
+                        if ((__GmLeft.uiPulseCtr + 600) > __GmLeft.uiPulse) {
+                          flag_bug=0;//Ô­µØ×ª±êÖ¾
+                          GucFrontNear=0;
+                            goto End;
+                        }
+                    }
+                    __GmRight.uiPulse = MAZETYPE * ONEBLOCK;
+                    __GmLeft.uiPulse  = MAZETYPE * ONEBLOCK;
+                    GuiSpeedCtr=__SPEEDUP;
+                    
+                 }
+              }
+             if(!cR)
+             {
+                 if ((__GucDistance[__RIGHT] & 0x01) == 0) {                 /*  ÓÒ±ßÓÐÖ§Â·£¬Ìø³ö³ÌÐò        */
+                
+                    __GmRight.uiPulse = __GmRight.uiPulseCtr+bug_LR;     //3300
+                    __GmLeft.uiPulse  = __GmLeft.uiPulseCtr+bug_LR;
+                    while ((__GucDistance[ __RIGHT] & 0x01) == 0) {
+                     
+                        if ((__GmLeft.uiPulseCtr + 600) > __GmLeft.uiPulse) {
+                          flag_bug=0;//Ô­µØ×ª±êÖ¾
+                          GucFrontNear=0;
+                         //mouseStop();//
+                         //while(1);//
+                            goto End;
+                        }
+                    }
+                    __GmRight.uiPulse = MAZETYPE * ONEBLOCK;
+                    __GmLeft.uiPulse  = MAZETYPE * ONEBLOCK;
+                    GuiSpeedCtr=__SPEEDUP;
+                }
+             }
+             
               __mouseCoorUpdate();                                    /*  ¸üÐÂ×ø±ê                    */
             } else {
                 cCoor = 1;
@@ -1221,38 +1227,40 @@ void mazeSearch(void)                  //ËÑË÷Á¬Ðø×ªÍä
         }
         
         if (cL) {                                                       /*  ÊÇ·ñÔÊÐí¼ì²â×ó±ß            */
-            if ((__GucDistance[ __LEFT] & 0x01) == 0) {                 /*  ×ó±ßÓÐÖ§Â·£¬Ìø³ö³ÌÐò        */
-            
-                __GmRight.uiPulse = __GmRight.uiPulseCtr +2620 - GuiTpusle_LR;      //1500
-                __GmLeft.uiPulse  = __GmLeft.uiPulseCtr  + 2620 - GuiTpusle_LR;
+          if(cj){GuiTpusle_LR =0;}
+            if ((__GucDistance[ __LEFT] & 0x01) == 0) {                 /*  ×ó±ßÓÐÖ§Â·£¬Ìø³ö³ÌÐò        */            
+                __GmRight.uiPulse = __GmRight.uiPulseCtr +3000 - GuiTpusle_LR;      //1500
+                __GmLeft.uiPulse  = __GmLeft.uiPulseCtr  + 3000 - GuiTpusle_LR;
                 while ((__GucDistance[ __LEFT] & 0x01) == 0) {
                  
                     if ((__GmLeft.uiPulseCtr + 600) > __GmLeft.uiPulse) {
                       GucFrontNear=0;
-                        goto End;
+                        goto End;                       
                     }
                 }
                 __GmRight.uiPulse = MAZETYPE * ONEBLOCK;
                 __GmLeft.uiPulse  = MAZETYPE * ONEBLOCK;
-                GuiSpeedCtr=__SPEEDUP;
+                GuiSpeedCtr=__SPEEDUP;              
             }
-        } else {                                                        /*  ×ó±ßÓÐÇ½Ê±¿ªÊ¼ÔÊÐí¼ì²â×ó±ß  */
+        } else {                           
+          /*  ×ó±ßÓÐÇ½Ê±¿ªÊ¼ÔÊÐí¼ì²â×ó±ß  */
             if ( __GucDistance[ __LEFT] & 0x01) {
                 cL = 1;
             }
         }
         if (cR) {                                                       /*  ÊÇ·ñÔÊÐí¼ì²âÓÒ±ß            */
+            if(cj){GuiTpusle_LR =0;}
             if ((__GucDistance[__RIGHT] & 0x01) == 0) {                 /*  ÓÒ±ßÓÐÖ§Â·£¬Ìø³ö³ÌÐò        */
-            
-                __GmRight.uiPulse = __GmRight.uiPulseCtr + 2950 - GuiTpusle_LR;     //3300
-                __GmLeft.uiPulse  = __GmLeft.uiPulseCtr  + 2950 - GuiTpusle_LR;
+                __GmRight.uiPulse = __GmRight.uiPulseCtr + 3000 - GuiTpusle_LR;     //3300
+                __GmLeft.uiPulse  = __GmLeft.uiPulseCtr  + 3000 - GuiTpusle_LR;
                 while ((__GucDistance[ __RIGHT] & 0x01) == 0) {
                  
                     if ((__GmLeft.uiPulseCtr + 600) > __GmLeft.uiPulse) {
                       GucFrontNear=0;
                      //mouseStop();//
                      //while(1);//
-                        goto End;
+                      
+                        goto End;                      
                     }
                 }
                 __GmRight.uiPulse = MAZETYPE * ONEBLOCK;
@@ -1270,7 +1278,28 @@ End:
     
 }
 
-
+/*********************************************************************************************************
+** Function name:       Go_one_grid
+** Descriptions:        ¶¨Ê±ÖÐ¶ÏÉ¨Ãè¡£
+** input parameters:    ÎÞ
+** output parameters:   ÎÞ
+** Returned value:      ÎÞ
+*********************************************************************************************************/
+void Go_one_grid()
+{
+    __GmSPID.sRef=36;
+    __GiMaxSpeed=36;
+    __GucMouseState   = __GOAHEAD;
+    __GmRight.cState  = __MOTORRUN;
+    __GmLeft.cState   = __MOTORRUN;
+    __GmRight.uiPulse = ONEBLOCK;
+    __GmLeft.uiPulse  = ONEBLOCK;
+    __GmLeft.uiPulseCtr = 0;      
+    __GmRight.uiPulseCtr = 0;  
+    while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
+    while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);
+    __mouseCoorUpdate();                                            /*  ¸üÐÂ×ø±ê                    */
+}
 
 
 /*********************************************************************************************************
@@ -1336,7 +1365,7 @@ void __irCheck (void)
 
     case 0:
         __irSendFreq(GusFreq_X, 3);                                          /*  Çý¶¯Ð±45¶È½ÇÉÏµÄ´«¸ÐÆ÷¼ì²â      */
-        __irSendFreq(GusFreq_L, 2);                                         /*  Ì½²â×óÓÒÁ½²à½ü¾à    30000        */
+       __irSendFreq(GusFreq_L, 2);                                         /*  Ì½²â×óÓÒÁ½²à½ü¾à    30000        */
         break;
         
     case 1:
@@ -1435,50 +1464,101 @@ void mouseStop(void)
 ** Returned value:      ÎÞ         °´²½Êý×ªÍä
 *********************************************************************************************************/
 void mouseTurnright(void)
-{  
-   while ((__GmRight.uiPulseCtr+450) <= __GmRight.uiPulse);//150//450//700
-   while ((__GmLeft.uiPulseCtr+450 ) <= __GmLeft.uiPulse);//150//450//700
-   __GmLeft.uiPulse =2300;            // 135*32*1024/(12*25*3.14)  R_r=14mm  R_l=14+72=86 ;4697//2500//2300
-   __GmLeft.uiPulseCtr=0;
-   __GmRight.uiPulse =2300;           // 22*32*1024/(12*25*3.14);//2500//2300
-   __GmRight.uiPulseCtr=0;
-   __GmSPID.sRef=28;
-   __GmWPID.sRef=-15;
-   GW=0;
-   __GucMouseState   = __TURNRIGHT; 
-   __GmRight.cState =__MOTORRUN;        //µÃ¼ÓµçÄÔÊó×´Ì¬
-   __GmLeft.cState  =__MOTORRUN;
-   GucMouseDir     = (GucMouseDir + 1) % 4;                            /*  ·½Ïò±ê¼Ç                    */
-   while(1)
-   {
-       if(GW>68300)   //68300
-       {
-         break;
-       }                 
+{ 
+  int16 sRef_tmp=0;
+  __GmSPID.sRef=36;
+  __GiMaxSpeed=36;
+  if(flag_bug==0)
+  {  
+     while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
+     while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);
+     __GmLeft.uiPulse =3000;            
+     __GmLeft.uiPulseCtr=0;
+     __GmRight.uiPulse =3000;          
+     __GmRight.uiPulseCtr=0;
+     __GmWPID.sRef=-18;
+     GW=0;
+     __GucMouseState   = __TURNRIGHT; 
+     __GmRight.cState =__MOTORRUN;        //µÃ¼ÓµçÄÔÊó×´Ì¬
+     __GmLeft.cState  =__MOTORRUN;
+     GucMouseDir     = (GucMouseDir + 1) % 4;                            /*  ·½Ïò±ê¼Ç                    */  
+     while(1)
+     {
+         if(GW>66000)   
+         {
+           break;
+         }                    
+     }
+     //__mazeInfDebug();
+     __GmWPID.sRef=0;     
+     __GucMouseState   = __GOAHEAD;
+     GuiSpeedCtr=3;
+     __GmLeft.uiPulse =2400;    //1200   //2200       
+     __GmLeft.uiPulseCtr=0;
+     __GmRight.uiPulse =2400;           
+     __GmRight.uiPulseCtr=0;
+    while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
+    while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);
        
-   }
-   __mazeInfDebug();
-   __GmWPID.sRef=0;   
-   __GucMouseState   = __GOAHEAD;
-   GuiSpeedCtr=3;
-   __GmLeft.uiPulse =3100; //3000         
-   __GmLeft.uiPulseCtr=0;
-   __GmRight.uiPulse =3100;    //3000     
-   __GmRight.uiPulseCtr=0;
-  while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
-  while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);
-  //delay(12000000);
-  //delay(150000);
- //mouseStop();
-   //while(1);
-   __GucMouseState   = __TURNRIGHT;
-   GuiSpeedCtr=__SPEEDUP;
-   __GmRight.cState = __MOTORSTOP;       
-   __GmLeft.cState  = __MOTORSTOP;
-   __GmRight.uiPulseCtr = 0;
-   __GmLeft.uiPulseCtr = 0;
-}
+     __GucMouseState   = __TURNRIGHT;
+     GuiSpeedCtr=__SPEEDUP;
+     __GmRight.cState = __MOTORSTOP;       
+     __GmLeft.cState  = __MOTORSTOP;
+     __GmRight.uiPulseCtr = 0;
+     __GmLeft.uiPulseCtr = 0;
+     //s++;
+   if(s==5)
+   {stop();}
 
+  }
+  else if(flag_bug==1)
+  {    
+     while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
+     while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);
+     
+     __GmLeft.uiPulse =3000;            // 22*32*1024/(12*25*3.14)  R_l=14mm  R_r=14+72=86
+     __GmLeft.uiPulseCtr=0;
+     __GmRight.uiPulse =3000;           // 135*32*1024/(12*25*3.14)
+     __GmRight.uiPulseCtr=0;
+     GuiSpeedCtr=3;
+     sRef_tmp=__GmSPID.sRef;
+     __GmSPID.sRef=0;
+     __delay(3000000);
+     __GmWPID.sRef=-10;
+     GW=0;
+     __GucMouseState   = __TURNLEFT; 
+     __GmRight.cState = __MOTORRUN;        //µÃ¼ÓµçÄÔÊó×´Ì¬
+     __GmLeft.cState  = __MOTORRUN;
+     GucMouseDir     = (GucMouseDir + 1) % 4;                            /*  ·½Ïò±ê¼Ç                    */
+     while(1)
+     {
+         if(GW>80000)  
+         {
+           break;
+         }                      
+     }
+     //__mazeInfDebug();
+     __GmWPID.sRef=0;
+     __delay(3000000);
+     __GmSPID.sRef=sRef_tmp;
+     __GucMouseState   = __GOAHEAD;
+     GuiSpeedCtr=3;
+     __GmLeft.uiPulse =3000;         //2200  
+     __GmLeft.uiPulseCtr=0;
+     __GmRight.uiPulse =3000;           
+     __GmRight.uiPulseCtr=0;
+     while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
+     while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);
+       
+     __GucMouseState   = __TURNRIGHT;
+     GuiSpeedCtr=__SPEEDUP;
+     __GmRight.cState = __MOTORSTOP;       
+     __GmLeft.cState  = __MOTORSTOP;
+     __GmRight.uiPulseCtr = 0;
+     __GmLeft.uiPulseCtr = 0;
+     flag_bug=0;    
+  }
+}
 /*********************************************************************************************************
 ** Function name:       mouseTurnleft
 ** Descriptions:        ×ó×ª
@@ -1488,119 +1568,19 @@ void mouseTurnright(void)
 *********************************************************************************************************/
 void mouseTurnleft(void)
 {
-  
-  while ((__GmRight.uiPulseCtr+150 ) <= __GmRight.uiPulse);
-   while ((__GmLeft.uiPulseCtr+150 ) <= __GmLeft.uiPulse);
-   __GmLeft.uiPulse =2500;            // 22*32*1024/(12*25*3.14)  R_l=14mm  R_r=14+72=86
-   __GmLeft.uiPulseCtr=0;
-   __GmRight.uiPulse =2500;           // 135*32*1024/(12*25*3.14)
-   __GmRight.uiPulseCtr=0;
-   __GmSPID.sRef=28;  //Ö±ÏßPIDµÄ½á¹¹Ìå£¬ËÙ¶ÈÉè¶¨Öµ30 to 35
-   __GmWPID.sRef=15;  //Ðý×ªPID
-   GW=0;
-   __GucMouseState   = __TURNLEFT; 
-   __GmRight.cState = __MOTORRUN;        //µÃ¼ÓµçÄÔÊó×´Ì¬
-   __GmLeft.cState  = __MOTORRUN;
-   GucMouseDir     = (GucMouseDir + 3) % 4;          /*  ·½Ïò±ê¼Ç                    */
-   while(1)
-   {
-       if(GW>68200)
-       {
-         break;   //ÒÀ¾Ý×´Ì¬TURNLEFT´¥·¢ÖÐ¶Ïº¯Êý
-       }                      
-   }
-   __mazeInfDebug();//ÊýÂë¹ÜÏÔÊ¾×´Ì¬
-   __GmWPID.sRef=0;//¸üÐÂ×´Ì¬
-   __GucMouseState   = __GOAHEAD;//¸üÐÂ×´Ì¬
-   GuiSpeedCtr=3;//
-   __GmLeft.uiPulse =3100;//2700      
-   __GmLeft.uiPulseCtr=0;
-   __GmRight.uiPulse =3100;//2700           
-   __GmRight.uiPulseCtr=0;
+  int16 sRef_tmp=0;
+  __GmSPID.sRef=36;
+  __GiMaxSpeed=36;
+  if(flag_bug==0)
+  {
    while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
    while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);
-   //delay(12000000);
- //delay(150000);
-  // mouseStop();
-   //while(1);
-   __GucMouseState   = __TURNLEFT;
-   GuiSpeedCtr=__SPEEDUP;
-   __GmRight.cState = __MOTORSTOP;       
-   __GmLeft.cState  = __MOTORSTOP;
-   __GmRight.uiPulseCtr = 0;
-   __GmLeft.uiPulseCtr = 0;
-}
-/*********************************************************************************************************
-** Function name:       mouseTurnleft
-** Descriptions:        ×ó×ª
-** input parameters:    ÎÞ
-** output parameters:   ÎÞ
-** Returned value:      ÎÞ
-*********************************************************************************************************/
-void mouseTurnright_C(void)
-{  
-    
-   while ((__GmRight.uiPulseCtr+450 ) <= __GmRight.uiPulse);//200
-   while ((__GmLeft.uiPulseCtr+450 ) <= __GmLeft.uiPulse);  //200   
-   __GmLeft.uiPulse =3000;            
-   __GmLeft.uiPulseCtr=0;
-   __GmRight.uiPulse =3000;           
-   __GmRight.uiPulseCtr=0;
-   __GmSPID.sRef=35;
-   __GmWPID.sRef=-19;
-   GW=0;
-   __GucMouseState   = __TURNRIGHT;   
-   __GmRight.cState =__MOTORRUN;        //µÃ¼ÓµçÄÔÊó×´Ì¬
-   __GmLeft.cState  =__MOTORRUN;
-   GucMouseDir     = (GucMouseDir + 1) % 4;                            /*  ·½Ïò±ê¼Ç                    */
    
-   while(1)
-   {
-       if(GW>65000)   //65000
-       {
-         break;
-       }
-   }
-   __mazeInfDebug();
-   __GmWPID.sRef=0;  
-   __GucMouseState   = __GOAHEAD;
-   GuiSpeedCtr=3;
-   __GmLeft.uiPulse =2500- GuiTpusle_S;        //2050  
+   __GmLeft.uiPulse =3000;            // 22*32*1024/(12*25*3.14)  R_l=14mm  R_r=14+72=86
    __GmLeft.uiPulseCtr=0;
-   __GmRight.uiPulse =2500- GuiTpusle_S;          //2050 
+   __GmRight.uiPulse =3000;           // 135*32*1024/(12*25*3.14)
    __GmRight.uiPulseCtr=0;
-   while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
-   while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);
-  // delay(12000000);
-  //delay(150000);
- // mouseStop();
- //while(1);
-   __GucMouseState   = __TURNRIGHT;   
-   GuiSpeedCtr=__SPEEDUP;
-   __GmRight.cState = __MOTORSTOP;       
-   __GmLeft.cState  = __MOTORSTOP;
-   __GmRight.uiPulseCtr = 0;
-   __GmLeft.uiPulseCtr = 0;
-}
-
-/*********************************************************************************************************
-** Function name:       mouseTurnleft
-** Descriptions:        ×ó×ª
-** input parameters:    ÎÞ
-** output parameters:   ÎÞ
-** Returned value:      ÎÞ
-*********************************************************************************************************/
-void mouseTurnleft_C(void)
-{
-  
-   while ((__GmRight.uiPulseCtr+150 ) <= __GmRight.uiPulse);//200
-   while ((__GmLeft.uiPulseCtr+150 ) <= __GmLeft.uiPulse);//200
-     
-   __GmLeft.uiPulse =3000;            
-   __GmLeft.uiPulseCtr=0;
-   __GmRight.uiPulse =3000;          
-   __GmRight.uiPulseCtr=0;
-   __GmSPID.sRef=34;   
+   
    __GmWPID.sRef=18;
    GW=0;
    __GucMouseState   = __TURNLEFT; 
@@ -1609,33 +1589,184 @@ void mouseTurnleft_C(void)
    GucMouseDir     = (GucMouseDir + 3) % 4;                            /*  ·½Ïò±ê¼Ç                    */
    while(1)
    {
-       if(GW>64400)//85000
+       if(GW>66000)  
        {
          break;
-       }
-     
+       }                      
    }
-   __mazeInfDebug();
-   __GmWPID.sRef=0; 
+   //__mazeInfDebug();
+   __GmWPID.sRef=0;
    __GucMouseState   = __GOAHEAD;
    GuiSpeedCtr=3;
-   __GmLeft.uiPulse =2500-GuiTpusle_S;             
+   __GmLeft.uiPulse =2400;//2200       
    __GmLeft.uiPulseCtr=0;
-   __GmRight.uiPulse =2500- GuiTpusle_S;           
+   __GmRight.uiPulse =2400;         
    __GmRight.uiPulseCtr=0;
    while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
    while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);
-     //delay(12000000);
-  //delay(150000);
-   //mouseStop();
-  //while(1);
-   
+     
    __GucMouseState   = __TURNLEFT;
    GuiSpeedCtr=__SPEEDUP;
    __GmRight.cState = __MOTORSTOP;       
    __GmLeft.cState  = __MOTORSTOP;
    __GmRight.uiPulseCtr = 0;
    __GmLeft.uiPulseCtr = 0;
+      //s++;
+   if(s==6)
+   {stop();}
+   
+  }
+  else if(flag_bug==1)
+  {
+     while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
+     while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);
+     
+     __GmLeft.uiPulse =3000;            // 22*32*1024/(12*25*3.14)  R_l=14mm  R_r=14+72=86
+     __GmLeft.uiPulseCtr=0;
+     __GmRight.uiPulse =3000;           // 135*32*1024/(12*25*3.14)
+     __GmRight.uiPulseCtr=0;
+     GuiSpeedCtr=3;
+     sRef_tmp=__GmSPID.sRef;
+     __GmSPID.sRef=0;
+     __delay(3000000);
+     __GmWPID.sRef=10;
+     GW=0;
+     __GucMouseState   = __TURNLEFT; 
+     __GmRight.cState = __MOTORRUN;        //µÃ¼ÓµçÄÔÊó×´Ì¬
+     __GmLeft.cState  = __MOTORRUN;
+     GucMouseDir     = (GucMouseDir + 3) % 4;                            /*  ·½Ïò±ê¼Ç                    */
+     while(1)
+     {
+         if(GW>52000)  
+         {
+           break;
+         }                      
+     }
+     //__mazeInfDebug();
+     __GmWPID.sRef=0;
+     __delay(3000000);
+     __GmSPID.sRef=sRef_tmp;
+     __GucMouseState   = __GOAHEAD;
+     GuiSpeedCtr=3;
+     __GmLeft.uiPulse =3000;         //2200  
+     __GmLeft.uiPulseCtr=0;
+     __GmRight.uiPulse =3000;           
+     __GmRight.uiPulseCtr=0;
+     while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
+     while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);
+       
+     __GucMouseState   = __TURNLEFT;
+     GuiSpeedCtr=__SPEEDUP;
+     __GmRight.cState = __MOTORSTOP;       
+     __GmLeft.cState  = __MOTORSTOP;
+     __GmRight.uiPulseCtr = 0;
+     __GmLeft.uiPulseCtr = 0;
+     flag_bug=0;    
+  }
+}
+/*********************************************************************************************************
+** Function name:       mouseTurnleft
+** Descriptions:        ÓÒ×ª-·µ»ØÓÃ
+** input parameters:    ÎÞ
+** output parameters:   ÎÞ
+** Returned value:      ÎÞ
+*********************************************************************************************************/
+void mouseTurnright_C(void)
+{     
+   while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
+   while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);     
+   __GmLeft.uiPulse =3000;            
+   __GmLeft.uiPulseCtr=0;
+   __GmRight.uiPulse =3000;           
+   __GmRight.uiPulseCtr=0;
+   __GmWPID.sRef=-20;
+   GW=0;
+   __GucMouseState   = __TURNRIGHT;   
+   __GmRight.cState =__MOTORRUN;        //µÃ¼ÓµçÄÔÊó×´Ì¬
+   __GmLeft.cState  =__MOTORRUN;
+   GucMouseDir     = (GucMouseDir + 1) % 4;                            /*  ·½Ïò±ê¼Ç                    */
+   
+   while(1)
+   {
+       if(GW>63000)   
+       {
+         break;
+       }
+   }
+   //__mazeInfDebug();
+   __GmWPID.sRef=0;  
+   __GucMouseState   = __GOAHEAD;
+   GuiSpeedCtr=3;
+   __GmLeft.uiPulse =2800- GuiTpusle_S;          
+   __GmLeft.uiPulseCtr=0;
+   __GmRight.uiPulse =2800- GuiTpusle_S;           
+   __GmRight.uiPulseCtr=0;
+   while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
+   while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);
+     
+   __GucMouseState   = __TURNRIGHT;   
+   GuiSpeedCtr=__SPEEDUP;
+   __GmRight.cState = __MOTORSTOP;       
+   __GmLeft.cState  = __MOTORSTOP;
+   __GmRight.uiPulseCtr = 0;
+   __GmLeft.uiPulseCtr = 0;
+   //s++;
+   if(s==11)
+   {stop();}
+}
+
+/*********************************************************************************************************
+** Function name:       mouseTurnleft
+** Descriptions:        ×ó×ª-·µ»ØÓÃ
+** input parameters:    ÎÞ
+** output parameters:   ÎÞ
+** Returned value:      ÎÞ
+*********************************************************************************************************/
+void mouseTurnleft_C(void)
+{
+  
+   while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
+   while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);
+     
+   __GmLeft.uiPulse =3000;            
+   __GmLeft.uiPulseCtr=0;
+   __GmRight.uiPulse =3000;          
+   __GmRight.uiPulseCtr=0;
+   
+   __GmWPID.sRef=20;
+   GW=0;
+   __GucMouseState   = __TURNLEFT; 
+   __GmRight.cState = __MOTORRUN;        //µÃ¼ÓµçÄÔÊó×´Ì¬
+   __GmLeft.cState  = __MOTORRUN;
+   GucMouseDir     = (GucMouseDir + 3) % 4;                            /*  ·½Ïò±ê¼Ç                    */
+   while(1)
+   {
+       if(GW>63000)//85000
+       {
+         break;
+       }
+     
+   }
+   //__mazeInfDebug();
+   __GmWPID.sRef=0; 
+   __GucMouseState   = __GOAHEAD;
+   GuiSpeedCtr=3;
+   __GmLeft.uiPulse =2800-GuiTpusle_S;             
+   __GmLeft.uiPulseCtr=0;
+   __GmRight.uiPulse =2800- GuiTpusle_S;           
+   __GmRight.uiPulseCtr=0;
+   while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
+   while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);
+     
+   __GucMouseState   = __TURNLEFT;
+   GuiSpeedCtr=__SPEEDUP;
+   __GmRight.cState = __MOTORSTOP;       
+   __GmLeft.cState  = __MOTORSTOP;
+   __GmRight.uiPulseCtr = 0;
+   __GmLeft.uiPulseCtr = 0;
+   //s++;
+   if(s==1)
+   {stop();}
 }
 /*********************************************************************************************************
 ** Function name:       mouseTurnback
@@ -1652,110 +1783,73 @@ void mouseTurnback(void)
    {
      while(1)
      {
-
        if(GucFrontJinju){
-
          while(GucFrontJinju){
            q++;
-           if(q>8){//10
+           if(q>10){
              w=1;
              break;
-           }
-             
+           }          
          }
          q=0;
        }
       if(w)
         break;
-     
      }
    }
-   else{
-     __GmRight.uiPulse +=1200;//2000//5000
-     __GmLeft.uiPulse +=1200;
+   else
+   {
+     __GmRight.uiPulse +=4500;
+     __GmLeft.uiPulse +=4500;
     while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
-   while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);
-     
-   }
-   
-   __GmSPID.sRef=0;
-   
-    __GucMouseState   = __TURNBACK;
-    
-//180Ðý×ªºó²»Í£ÏÂ
-    
-    __GmRight.uiPulse =6200;              // 113*32*1024/(12*25*3.14)3250
-    __GmRight.uiPulseCtr=0;
-    __GmLeft.uiPulse =6200; 
-    __GmLeft.uiPulseCtr=0;
-    
-    GW=0;
-   if(((__GucDistance[__RIGHT] == 0x03) && (__GucDistance[__LEFT] == 0x01))
-       ||((__GucDistance[__RIGHT] == 0x03) && (__GucDistance[__LEFT] == 0x00))){
-    __GucMouseState   = 6;
-    __GmWPID.sRef=15;//16
-    __GmLeft.cState   = __MOTORRUN;
-    __GmRight.cState  = __MOTORRUN;
-    GucMouseDir = (GucMouseDir + 2) % 4;                                
-    
-    while(1)
-   {
-       if(GW>154800)   //151000
-       {
-         break;
-       }                  
-       
-      
-   }
-    __mazeInfDebug();
-    __GmWPID.sRef=0;
-    __delay(600000);//500000
-    }
-    else{
-    __GucMouseState   = 5;
-    __GmWPID.sRef=-15;//-16
-    __GmLeft.cState   = __MOTORRUN;
-    __GmRight.cState  = __MOTORRUN;
-    GucMouseDir = (GucMouseDir + 2) % 4;                                
-    
-    while(1)
-   {
-       if(GW>155000)   //156000
-       {
-         break;
-       }                  
-       
-     
-   }
-    __mazeInfDebug();
-    __GmWPID.sRef=0;
-    __delay(600000);
+    while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);
    } 
-
-    __GmSPID.sRef=30;
-    __GmWPID.sRef=0;
-    
-     __GmLeft.uiPulse =2000;   ////////////////          
-   __GmLeft.uiPulseCtr=0;
-   __GmRight.uiPulse =2000;           
-   __GmRight.uiPulseCtr=0;
-   while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
-   while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);//////////////////
    
+    __GmSPID.sRef=0; 
+    __GucMouseState   = __TURNBACK; 
+    __delay(1500000); 
+    __GmRight.uiPulse =7200;            
+    __GmRight.uiPulseCtr=0;
+    __GmLeft.uiPulse =7200; 
+    __GmLeft.uiPulseCtr=0;
+ 
+    GW=0;
+    __GucMouseState   = 6;
+    __GmWPID.sRef=16;
+    __GmLeft.cState   = __MOTORRUN;
+    __GmRight.cState  = __MOTORRUN;
+    GucMouseDir = (GucMouseDir + 2) % 4;                                  
+    while(1)
+   {
+       if(GW>162000)  
+       {
+         break;
+       }                        
+   }
+    //__mazeInfDebug();
+    __GmWPID.sRef=0;
+    __delay(500000);
+    __GmSPID.sRef=28;
+    __GmWPID.sRef=0;
     GuiSpeedCtr=__SPEEDUP;
     __GmRight.cState = __MOTORSTOP;       
     __GmLeft.cState  = __MOTORSTOP;
-    __GmRight.sSpeed = 0;//5      0
+    __GmRight.uiPulse =6200;            
+    __GmRight.uiPulseCtr=0;
+    __GmLeft.uiPulse =6200; 
+    __GmLeft.uiPulseCtr=0;
+    while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
+    while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse); 
+    __GmRight.sSpeed = 0;
     __rightMotorContr();
-    __GmLeft.sSpeed = 0;//5     0
+    __GmLeft.sSpeed = 0;
     __leftMotorContr();
-
     __GmRight.uiPulseCtr = 0;
     __GmLeft.uiPulseCtr = 0;
 
 }
 /*********************************************************************************************************
-** Function name:       mouseTurnback_Y
+** Function name:       mouseTurnback_Y 
 ** Descriptions:        Ô­µØÐý×ª180¶È
 ** input parameters:    ÎÞ
 ** output parameters:   ÎÞ
@@ -1763,69 +1857,40 @@ void mouseTurnback(void)
 *********************************************************************************************************/
 void mouseTurnback_Y(void)
 {
-   __delay(100000);
-   __GmSPID.sRef=0;
+    __GmRight.uiPulse +=1500;
+    __GmLeft.uiPulse +=1500;
    
-    __GucMouseState   = __TURNBACK;
-    
-   
+   while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);    
+   while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse); 
+   __GmSPID.sRef=0;  
+    __GucMouseState   = __TURNBACK;    
+    __delay(1500000);
+    __GmRight.uiPulse =5000;             
+    __GmRight.uiPulseCtr=0;
+    __GmLeft.uiPulse =5000; 
+    __GmLeft.uiPulseCtr=0;
     GW=0;
-   if(((__GucDistance[__RIGHT] == 0x03) && (__GucDistance[__LEFT] == 0x01))
-       ||((__GucDistance[__RIGHT] == 0x03) && (__GucDistance[__LEFT] == 0x00))){
-    __GucMouseState   = 6;
+     __GucMouseState   = 6;
     __GmWPID.sRef=16;
     __GmLeft.cState   = __MOTORRUN;
     __GmRight.cState  = __MOTORRUN;
-    GucMouseDir = (GucMouseDir + 2) % 4;                                
-    
+    GucMouseDir = (GucMouseDir + 2) % 4;                                  
     while(1)
    {
-       if(GW>158000)  
+       if(GW>152000)   
        {
          break;
-       }                  
-       
-      
+       }                        
    }
-    __mazeInfDebug();
+    __GmSPID.sRef=10;
     __GmWPID.sRef=0;
-    __delay(300000);
-    }
-    else{
-    __GucMouseState   = 5;
-    __GmWPID.sRef=-16;
-    __GmLeft.cState   = __MOTORRUN;
-    __GmRight.cState  = __MOTORRUN;
-    GucMouseDir = (GucMouseDir + 2) % 4;                                
-    
-    while(1)
-   {
-       if(GW>158000)   
-       {
-         break;
-       }                  
-       
-     
-   }
-    __mazeInfDebug();
-    __GmWPID.sRef=0;
-    __delay(300000);
-   } 
-   
-  /*  __GmLeft.uiPulse =2200;   ////////////////////          
-   __GmLeft.uiPulseCtr=0;
-   __GmRight.uiPulse =2200;           
-   __GmRight.uiPulseCtr=0;
-   while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
-   while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse);///////////////
-   
-  */ 
+    __delay(500000);
     GuiSpeedCtr=__SPEEDUP;
     __GmRight.cState = __MOTORSTOP;       
     __GmLeft.cState  = __MOTORSTOP;
-    __GmRight.sSpeed = 0;//5   0
+    __GmRight.sSpeed = 0;
     __rightMotorContr();
-    __GmLeft.sSpeed = 0;//5    0
+    __GmLeft.sSpeed = 0;
     __leftMotorContr();
     __GmRight.uiPulseCtr = 0;
     __GmLeft.uiPulseCtr = 0;
@@ -1860,8 +1925,11 @@ void __mouseCoorUpdate (void)
     default:
         break;
     }
-    __mazeInfDebug();
+    //__mazeInfDebug();
     __wallCheck();
+//    UARTCharPut(UART0_BASE,GmcMouse.cX);
+//    UARTCharPut(UART0_BASE, GmcMouse.cY);
+//    UARTCharPut(UART0_BASE, 0xff); 
 }
 
 
@@ -2038,7 +2106,7 @@ void mouseInit (void)
     __sensorInit();                                                     /*  ´«¸ÐÆ÷³õÊ¼»¯                */
     __MotorIint();                                                      /*  Ö±Á÷µç»ú¿ØÖÆ³õÊ¼»¯          */
     __sysTickInit();                                                    /*  ÏµÍ³Ê±ÖÓ³õÊ¼»¯              */
-    //__UART0Init ();
+    __UART0Init ();
     MPU6050_Init();
     GPIODirModeSet(GPIO_PORTE_BASE, __DIR1, GPIO_DIR_MODE_IN);
     GPIODirModeSet(GPIO_PORTD_BASE, __DIR2, GPIO_DIR_MODE_IN);
@@ -2116,9 +2184,10 @@ void __MotorIint (void)
     TimerConfigure(TIMER2_BASE, TIMER_CFG_32_BIT_PER);                  /*  ÅäÖÃÎª32Î»ÖÜÆÚ¼ÆÊýÄ£Ê½      */
     TimerLoadSet(TIMER2_BASE, TIMER_A, 50000);                          /*  ÉèÖÃ¶¨Ê±Ê±¼ä                */
     TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);                    /*  ÉèÖÃÎªÒç³öÖÐ¶Ï              */
+    //IntPrioritySet(INT_TIMER2A,2<<5);
     IntEnable(INT_TIMER2A);                                             /*  Ê¹ÄÜ¶¨Ê±Æ÷2ÖÐ¶Ï             */
     TimerEnable(TIMER2_BASE, TIMER_A);                                  /*  Ê¹ÄÜ¶¨Ê±Æ÷2                 */
-    //FUCK
+    
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);                         //Ê¹ÄÜTimer0Ä£¿é
     GPIOPinTypeTimer(GPIO_PORTD_BASE,__SIG_M2_B);                         //ÅäÖÃD¿ÚµÄ4ÎªÂö³åÊäÈë
     GPIOPinTypeTimer(GPIO_PORTE_BASE,__SIG_M1_B);                         //ÅäÖÃE¿ÚµÄ3ÎªÂö³åÊäÈë
@@ -2143,14 +2212,15 @@ void __keyInit (void)
 {
     GPIODirModeSet(GPIO_PORTC_BASE, __KEY, GPIO_DIR_MODE_IN);           /*  ÉèÖÃ°´¼ü¿ÚÎªÊäÈë            */   
     GPIODirModeSet(GPIO_PORTA_BASE, ZLG7289_KEY, GPIO_DIR_MODE_IN);     /*  ÉèÖÃKEY¶Ë¿ÚÎªÊäÈë           */
+    GPIODirModeSet(GPIO_PORTC_BASE, __START, GPIO_DIR_MODE_IN);         /*  ÉèÖÃ°´¼ü¿ÚÎªÊäÈë            */
     GPIOIntTypeSet(GPIO_PORTA_BASE, ZLG7289_KEY, GPIO_FALLING_EDGE);    /*  ÅäÖÃÒý½ÅÏÂ½µÑØ´¥·¢ÖÐ¶Ï      */
+    
     GPIOPinIntEnable(GPIO_PORTA_BASE, ZLG7289_KEY);                     /*  Ê¹ÄÜÒý½ÅÊäÈëÖÐ¶Ï            */
-    IntEnable(INT_GPIOA);                                               /*  Ê¹ÄÜGPIO PA¿ÚÖÐ¶Ï           */    
-    GPIODirModeSet(GPIO_PORTC_BASE, __START, GPIO_DIR_MODE_IN);           /*  ÉèÖÃ°´¼ü¿ÚÎªÊäÈë            */
+    IntEnable(INT_GPIOA);  /*  Ê¹ÄÜGPIO PA¿ÚÖÐ¶Ï           */       
 }
 /*********************************************************************************************************
 ** Function name:       __keyIntDisable
-** Descriptions:        ZLG7289°´¼üÖÐ¶Ï½ûÄÜ
+** Descriptions:        ZLG7289°´¼üÖÐ¶Ï½ûÄÜ ÖØÆô
 ** input parameters:    ÎÞ
 ** output parameters:   ÎÞ
 ** Returned value:      ÎÞ
@@ -2169,6 +2239,7 @@ void  __keyIntDisable (void)
 void __sysTickInit (void)
 {
     SysTickPeriodSet(SysCtlClockGet() / 1600);                          /*  ÉèÖÃ¶¨Ê±Ê±ÖÓÎª625us           */
+    //IntPrioritySet(FAULT_SYSTICK,1<<5);
     SysTickEnable();                                                    /*  Ê¹ÄÜÏµÍ³Ê±ÖÓ                */
     SysTickIntEnable();                                                 /*  Ê¹ÄÜÏµÍ³Ê±ÖÓÖÐ¶Ï            */
 }
@@ -2183,11 +2254,11 @@ void __UART0Init (void)
 {
     SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
     GPIOPinTypeUART(GPIO_PORTA_BASE,GPIO_PIN_0  | GPIO_PIN_1);    //PA0 PA1ÉèÖÃÎª´®¿Ú
-    UARTConfigSet(UART0_BASE, 9600, (UART_CONFIG_WLEN_8 |  //ÅäÖÃ´®¿Ú0£¬8Î»Êý¾Ý£¬1Î»ÆðÊ¼Î»£¬1Î»Í£Ö¹Î»£¬ÓÃ»§²¨ÌØÂÊ
+    UARTConfigSet(UART0_BASE, 115200, (UART_CONFIG_WLEN_8 |  //ÅäÖÃ´®¿Ú0£¬8Î»Êý¾Ý£¬1Î»ÆðÊ¼Î»£¬1Î»Í£Ö¹Î»£¬ÓÃ»§²¨ÌØÂÊ
                                        UART_CONFIG_STOP_ONE |
                                        UART_CONFIG_PAR_NONE) & 0xFFFFFFEF);
-    IntEnable(INT_UART0);                                      //Ê¹ÄÜ´®¿Ú0ÏµÍ³ÖÐ¶Ï
-    UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_RT);      //Ê¹ÄÜ´®¿Ú0½ÓÊÕÖÐ¶ÏºÍ½ÓÊÕ³¬Ê±ÖÐ¶Ï 
+    //IntEnable(INT_UART0);                                      //Ê¹ÄÜ´®¿Ú0ÏµÍ³ÖÐ¶Ï
+    //UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_RT);      //Ê¹ÄÜ´®¿Ú0½ÓÊÕÖÐ¶ÏºÍ½ÓÊÕ³¬Ê±ÖÐ¶Ï 
     UARTEnable(UART0_BASE);    
 }
 
@@ -2201,6 +2272,122 @@ void GYRO_Z_Angle(void)
     }
     w=w/16.4;
     GW=GW+w;
+}
+/*********************************************************************************************************
+** Function name:      stop
+** Descriptions:        ¼±Í£
+** input parameters:    ÎÞ
+** output parameters:   ÎÞ
+** Returned value:      ÎÞ
+*********************************************************************************************************/
+void stop()
+{
+  while(1)
+  {
+    __delay(40000);
+    __GmRight.cState=0;
+    __GmWPID.sRef=0;
+    __GmSPID.sRef=0;
+     GsTpusle_T=0;
+    __PIDContr();
+  }
+  
+}
+/*********************************************************************************************************
+** Function name:       mouseTurnback_correct
+** Descriptions:        Ô­µØ×ªÍä½ÃÕýÎ»ÖÃ
+** input parameters:    Pulse£ºÏòºó½ÃÕýÂö³åÊý
+** output parameters:   ÎÞ
+** Returned value:      ÎÞ
+*********************************************************************************************************/
+void mouseTurnback_correct(uint16 time)
+{
+    __GmRight.cState = __CORRECT;       
+    __GmLeft.cState  = __CORRECT;
+    delayms(time);
+  
+    __GmSPID.sRef=28;
+    __GmWPID.sRef=0;
+    GuiSpeedCtr=__SPEEDUP;
+    __GmRight.cState = __MOTORSTOP;       
+    __GmLeft.cState  = __MOTORSTOP;
+    __GmRight.uiPulse =6200;            
+    __GmRight.uiPulseCtr=0;
+    __GmLeft.uiPulse =6200; 
+    __GmLeft.uiPulseCtr=0;
+    while ((__GmRight.uiPulseCtr+200 ) <= __GmRight.uiPulse);
+    while ((__GmLeft.uiPulseCtr+200 ) <= __GmLeft.uiPulse); 
+    __GmRight.sSpeed = 0;
+    __rightMotorContr();
+    __GmLeft.sSpeed = 0;
+    __leftMotorContr();
+    __GmRight.uiPulseCtr = 0;
+    __GmLeft.uiPulseCtr = 0;
+    buffer=0;
+   
+    
+}
+
+/*********************************************************************************************************
+** Function name:       startCheck2
+** Descriptions:        ´«¸ÐÆ÷¼ì²âÆðÅÜ
+** input parameters:    
+** output parameters:   ÎÞ
+** Returned value:      ture=1 false=0
+*********************************************************************************************************/
+uint8 startCheck2(void)
+{
+  if (__GucDistance[__FRONT] & 0x01) {
+        __delay(50);
+        if (__GucDistance[__FRONT] & 0x01) 
+        {
+          while(__GucDistance[__FRONT] & 0x01);
+          __delay(10000000);
+          return(true);
+        }
+        else{return(false);}
+    }else {
+        return(false);
+    }
+}
+/*********************************************************************************************************
+** Function name:       putstring
+** Descriptions:        ·¢ËÍÒ»´®×Ö·û
+** input parameters:    
+** output parameters:   ÎÞ
+** Returned value:      
+*********************************************************************************************************/
+void putstring(uint8 *string)
+{
+  while(*string!='\0')
+  {
+     UARTCharPut(UART0_BASE, *string);
+     string++;
+  }
+}
+
+
+/*********************************************************************************************************
+** Function name:       delayms
+** Descriptions:        ÑÓÊ±ºÁÃë
+** input parameters:    
+** output parameters:   ÎÞ
+** Returned value:      
+*********************************************************************************************************/
+#define ewarm
+#if defined(ewarm)
+static void
+SysCtlDelay2(unsigned long ulCount)
+{
+    __asm("    subs    r0, #1\n"
+          "    bne.n   SysCtlDelay2\n"
+          "    bx      lr");
+}
+#endif
+
+void delayms(uint16 ms)
+{
+  SysCtlDelay2(ms * (SysCtlClockGet() / 3000));
 }
 /*********************************************************************************************************
   END FILE

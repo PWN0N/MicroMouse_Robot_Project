@@ -1,4 +1,9 @@
-/*--------------File Info---------------------------------------------------------------------------------
+/****************************************Copyright (c)****************************************************
+**                               Guangzhou ZHIYUAN electronics Co.,LTD.
+**                                     
+**                                 http://www.embedtools.com
+**
+**--------------File Info---------------------------------------------------------------------------------
 ** File Name:           Maze.h
 ** Last modified Date: 
 ** Last Version: 
@@ -38,6 +43,8 @@
 #define  START          1                                               /*  启动状态                    */
 #define  MAZESEARCH     2                                               /*  搜寻状态                    */
 #define  SPURT          3                                               /*  冲刺状态                    */
+
+extern uint8    GucMouseTask;
 /*********************************************************************************************************
   申明需要使用的外部函数
 *********************************************************************************************************/
@@ -67,12 +74,12 @@ extern MAZECOOR GmcMouse;                                               /*  GmcM
 extern uint8    GucMouseDir;                                            /*  电脑鼠的前进方向            */
 extern uint8    GucMapBlock[MAZETYPE][MAZETYPE];                        /*  GucMapBlock[x][y]           */
                                                                          /*  x,横坐标;y,纵坐标;          */
-                                                                         /*  bit3~bit0分别代表左下右上   */
-extern uint8    map;                                                     /*  0:该方向无路，1:该方向有路  */
+                                                       /*  bit3~bit0分别代表左下右上   */
+extern uint8    map;                                                                        /*  0:该方向无路，1:该方向有路  */
 extern uint8    GucYiBaiBa;                   
 extern uint8    GucDirTemp;
 extern uint8    GucMapBlock1[MAZETYPE][MAZETYPE];  
-extern uint8    GucMapBlock0[MAZETYPE][MAZETYPE];                        /*存洪水时墙壁资料*/
+extern uint8    GucMapBlock0[MAZETYPE][MAZETYPE];  /*存洪水时墙壁资料*/
 extern uint8    GucMouseStart;
 extern uint8    GucFrontJinju;
 extern uint8    GucCrossroad;

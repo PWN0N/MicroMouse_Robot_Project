@@ -1,6 +1,6 @@
 # MicroMouse Robot Project
-**Authors:** [Jonathan Yan](https://github.com/PWN0N)
-, [Rebecca Larence](https://github.com/RebeccaSweetie/),
+**Authors:** [Ruixin Yan](https://github.com/PWN0N)
+, [Tianyu Liu](https://github.com/RebeccaSweetie),
  Pan Yang
 
 MicroMouse is an autonomous robot that can search a
@@ -10,6 +10,9 @@ from the start in one corner of the maze to the center.
 This project was developed on the second
 generation of MicroMouse hardware(based on LM3S615)
 from Tianjin Qicheng Co,Ltd.
+
+![MicroMouse_Left](Micromouse_left.png)
+![MicroMouse_Top](Micromouse.jpg)
 
 ## 1. License
 This project is released under a GPLv3 license. And We
@@ -27,6 +30,7 @@ In November 2017, we won the first
   MicroMouse Competitionin, and won
 the first place in the top ten MicroMouse competition
  again in the maze that was changed on site.
+![MicroMouse_Award](Micromouse_award.png)
 
  And we got an invitation from the Applied Power
  Electronics Conference (APEC) MicroMouse Contest,
